@@ -102,29 +102,17 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
     end
 })
 
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-
-local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
-local camera = workspace.CurrentCamera
-camera.CameraSubject = character:FindFirstChildOfClass("Humanoid")
-
 local currentTarget = nil
-
--- อัปเดต character เมื่อ respawn
-player.CharacterAdded:Connect(function(char)
-    character = char
-    hrp = character:WaitForChild("HumanoidRootPart")
-    camera.CameraSubject = character:FindFirstChildOfClass("Humanoid")
-end)
+local hasWarped = false
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
-        local existingTag = humanoid:FindFirstChild("__AutofarmDeath")
-        if existingTag then
-            existingTag:Destroy()
+        -- เคลียร์ tag event เก่า
+        local existing = humanoid:FindFirstChild("__AutofarmDeath")
+        if existing then
+            existing:Destroy()
         end
 
         local tag = Instance.new("ObjectValue")
@@ -134,63 +122,51 @@ local function setupTargetDeathListener(humanoid)
 
         humanoid.Died:Connect(function()
             currentTarget = nil
+            hasWarped = false
         end)
     end
 end
 
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
-        if not currentTarget or not currentTarget:IsDescendantOf(workspace) then
+        if not currentTarget or not currentTarget.Parent then
             currentTarget = nil
+            hasWarped = false
         end
 
         if not currentTarget then
-            local nearestMob, nearestDist = nil, math.huge
-
-            for _, mob in workspace.Debris.Monsters:GetChildren() do
+            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
                 if mob:GetAttribute("Monster_Id") == selectedMonsterId then
                     local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    local mobHRP = mob:FindFirstChild("HumanoidRootPart")
-
-                    if humanoid and humanoid.Health > 0 and mobHRP then
-                        local dist = (mobHRP.Position - hrp.Position).Magnitude
-                        if dist < 1000 and dist < nearestDist then
-                            nearestDist = dist
-                            nearestMob = mob
-                        end
+                    if humanoid and humanoid.Health > 0 then
+                        currentTarget = mob
+                        setupTargetDeathListener(humanoid)
+                        break
                     end
                 end
-            end
-
-            if nearestMob then
-                currentTarget = nearestMob
-                setupTargetDeathListener(currentTarget:FindFirstChildOfClass("Humanoid"))
             end
         end
 
-        if currentTarget then
+        if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local targetPos = mobHRP.Position + Vector3.new(0, 2, 0)
-                local lookAt = CFrame.new(targetPos, mobHRP.Position)
+                local safeOffset = Vector3.new(0, 3, -2)
+                local targetCFrame = mobHRP.CFrame + safeOffset
 
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-                end
+                -- Tween ตัวละครไปยังเป้าหมาย
+                local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local goal = { CFrame = targetCFrame }
 
-                character:SetPrimaryPartCFrame(lookAt)
+                local charHRP = character.PrimaryPart
+                local tween = TweenService:Create(charHRP, tweenInfo, goal)
+                tween:Play()
 
-                -- รีเซ็ตฟิสิกส์ภายหลังเพื่อไม่ให้จอดำ
-                task.delay(0.1, function()
-                    if humanoid then
-                        humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                    end
-                end)
+                hasWarped = true
             end
         end
     else
         currentTarget = nil
+        hasWarped = false
     end
 end)
 
