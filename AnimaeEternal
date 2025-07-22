@@ -163,7 +163,7 @@ RunService.Heartbeat:Connect(function()
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 3, -2) -- ลอยสูง 3 studs ขยับไปข้างหลัง 2 studs
+                local safeOffset = Vector3.new(0, 0, -2) -- ลอยสูง 3 studs ขยับไปข้างหลัง 2 studs
                 character:SetPrimaryPartCFrame(mobHRP.CFrame + safeOffset)
                 hasWarped = true
             end
