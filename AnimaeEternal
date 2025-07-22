@@ -105,7 +105,6 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 local RunService = game:GetService("RunService")
 local currentTarget = nil
 local hasWarped = false
-local searchRadius = 100 -- ระยะหามอนสเตอร์
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
@@ -126,60 +125,47 @@ local function setupTargetDeathListener(humanoid)
 end
 
 RunService.Heartbeat:Connect(function()
-    if autofarm and selectedMonsterId and character and character.PrimaryPart then
+    if autofarm and selectedMonsterId then
         if not currentTarget or not currentTarget.Parent then
             currentTarget = nil
             hasWarped = false
         end
 
         if not currentTarget then
-            local closestMob = nil
-            local closestDistance = math.huge
-
             for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
                 if mob:GetAttribute("Monster_Id") == selectedMonsterId then
                     local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    local mobHRP = mob:FindFirstChild("HumanoidRootPart")
-
-                    if humanoid and humanoid.Health > 0 and mobHRP then
-                        local distance = (mobHRP.Position - character.PrimaryPart.Position).Magnitude
-                        if distance <= searchRadius and distance < closestDistance then
-                            closestDistance = distance
-                            closestMob = mob
-                        end
+                    if humanoid and humanoid.Health > 0 then
+                        currentTarget = mob
+                        setupTargetDeathListener(humanoid)
+                        break
                     end
-                end
-            end
-
-            if closestMob then
-                local humanoid = closestMob:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    currentTarget = closestMob
-                    setupTargetDeathListener(humanoid)
                 end
             end
         end
 
-        if currentTarget and not hasWarped then
+        if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-if mobHRP and character and character.PrimaryPart then
-    local targetPos = mobHRP.Position + Vector3.new(0, 3, -2)  -- Offset ด้านหลัง + สูง 3 studs
-    local targetCFrame = CFrame.new(targetPos, mobHRP.Position)
+            if mobHRP and character and character.PrimaryPart then
+                local safeOffset = Vector3.new(0, 5, -1) -- ลอยสูงกว่าปกติ
+                local newCFrame = mobHRP.CFrame + safeOffset
+                character:SetPrimaryPartCFrame(newCFrame)
 
-    local currentCFrame = character.PrimaryPart.CFrame
-    local alpha = 0.3  -- ค่าความนุ่มนวล (0 = ไม่ขยับ, 1 = ไปทันที)
+                -- ปิด Physics ให้บินค้าง
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                end
 
-    local newCFrame = currentCFrame:Lerp(targetCFrame, alpha)
-    character:SetPrimaryPartCFrame(newCFrame)
-
-    hasWarped = true
-end
+                hasWarped = true
+            end
         end
     else
         currentTarget = nil
         hasWarped = false
     end
 end)
+
 
 
 
