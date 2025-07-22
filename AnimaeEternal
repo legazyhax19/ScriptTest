@@ -151,7 +151,7 @@ RunService.Heartbeat:Connect(function()
                 bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
                 bg.P = 1e4
 
-                local offset = Vector3.new(0, 50, -2) -- วาร์ปสูงขึ้นเล็กน้อย
+                local offset = Vector3.new(0, 100, -2) -- วาร์ปสูงขึ้นเล็กน้อย
                 local targetPos = mobHRP.Position + offset
                 bp.Position = targetPos
                 bg.CFrame = CFrame.new(targetPos, mobHRP.Position)
