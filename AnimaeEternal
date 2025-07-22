@@ -107,28 +107,27 @@ local TweenService = game:GetService("TweenService")
 
 local currentTarget = nil
 
--- วาร์ปแบบนุ่มนวล + ป้องกันการชน
+-- เปิด/ปิด Noclip
+local function setNoclip(enabled)
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not enabled
+        end
+    end
+end
+
+-- วาร์ปแบบปลอดภัยและนุ่มนวล
 local function safeWarp(targetCFrame)
     if character and character.PrimaryPart then
-        -- ปิด Collision ก่อนวาร์ป
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
+        setNoclip(true) -- ปิดการชนก่อนวาร์ป
 
-        -- วาร์ปแบบ Tween
         local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
         local goal = {CFrame = targetCFrame}
         TweenService:Create(character.PrimaryPart, tweenInfo, goal):Play()
 
-        -- เปิด Collision กลับหลังวาร์ป
+        -- เปิดกลับหลังวาร์ป
         task.delay(0.25, function()
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
+            setNoclip(false)
             local humanoid = character:FindFirstChildOfClass("Humanoid")
             if humanoid then
                 humanoid:ChangeState(Enum.HumanoidStateType.Running)
@@ -137,7 +136,7 @@ local function safeWarp(targetCFrame)
     end
 end
 
--- ตรวจสถานะตัวก่อนวาร์ป
+-- เช็คสถานะก่อนวาร์ป
 local function canWarp()
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     return humanoid and humanoid.Health > 0 and humanoid:GetState() == Enum.HumanoidStateType.Running
@@ -161,6 +160,7 @@ local function setupTargetDeathListener(humanoid)
     end
 end
 
+-- ลูปหลัก AutoFarm
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
         if not currentTarget or not currentTarget.Parent then
@@ -207,6 +207,7 @@ RunService.Heartbeat:Connect(function()
         currentTarget = nil
     end
 end)
+
 
 
 
