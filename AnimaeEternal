@@ -15,16 +15,18 @@ local Tabs = {
 }
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 
 -- ตัวแปรสำคัญ
-local monsterMap = {} -- [ชื่อ Title] = { Id = id, Health = health, Reference = mob }
+local monsterMap = {}
 local selectedMonsterId = nil
 local selectedMobData = nil
 local autofarm = false
-local lastTarget = nil
+local currentTarget = nil
+local hasWarped = false
 
 -- Dropdown UI
 local monsterDropdown = Tabs.Main:AddDropdown("SelectMonster", {
@@ -44,7 +46,7 @@ monsterDropdown:OnChanged(function(title)
     })
 end)
 
--- ฟังก์ชันโหลดมอนสเตอร์ กรองระยะ 1000 Studs
+-- โหลดมอนสเตอร์ใกล้ตัว
 local function loadMonsters()
     monsterMap = {}
     selectedMonsterId = nil
@@ -52,7 +54,7 @@ local function loadMonsters()
     monsterDropdown:SetValue(nil)
 
     local titles = {}
-    local maxDistance = 1000 -- ระยะกรองมอนสเตอร์
+    local maxDistance = 1000
     local playerPos = hrp.Position
 
     for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
@@ -63,7 +65,6 @@ local function loadMonsters()
 
         if id and title and mobHRP and not monsterMap[title] then
             local distance = (mobHRP.Position - playerPos).Magnitude
-
             if distance <= maxDistance then
                 monsterMap[title] = {
                     Id = id,
@@ -84,34 +85,33 @@ local function loadMonsters()
     })
 end
 
--- โหลดมอนสเตอร์ทันทีหลังสร้าง dropdown
 loadMonsters()
 
--- ปุ่ม Refresh รายชื่อมอนสเตอร์
 Tabs.Main:AddButton({
     Title = "🔄 รีเฟรชมอนสเตอร์",
     Callback = loadMonsters
 })
 
--- Toggle เปิด/ปิด AutoFarm
 Tabs.Main:AddToggle("AutoFarmToggle", {
     Title = "🚀 เริ่มฟาร์ม",
     Default = false,
     Callback = function(value)
         autofarm = value
+
+        -- คืนค่า Physics เมื่อปิด
+        if not value then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Seated)
+                task.wait()
+                humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            end
+        end
     end
 })
 
-local RunService = game:GetService("RunService")
-local currentTarget = nil
-local hasWarped = false
-
 local function setupTargetDeathListener(humanoid)
-    if humanoid then
-        if humanoid:FindFirstChild("__AutofarmDeath") then
-            humanoid:FindFirstChild("__AutofarmDeath"):Destroy()
-        end
-
+    if humanoid and not humanoid:FindFirstChild("__AutofarmDeath") then
         local tag = Instance.new("ObjectValue")
         tag.Name = "__AutofarmDeath"
         tag.Value = humanoid
@@ -147,11 +147,10 @@ RunService.Heartbeat:Connect(function()
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 0, -1) -- ลอยสูงกว่าปกติ
+                local safeOffset = Vector3.new(0, 0, -1)
                 local newCFrame = mobHRP.CFrame + safeOffset
                 character:SetPrimaryPartCFrame(newCFrame)
 
-                -- ปิด Physics ให้บินค้าง
                 local humanoid = character:FindFirstChildOfClass("Humanoid")
                 if humanoid then
                     humanoid:ChangeState(Enum.HumanoidStateType.Physics)
