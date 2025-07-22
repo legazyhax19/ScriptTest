@@ -125,8 +125,6 @@ local function setupTargetDeathListener(humanoid)
 end
 
 RunService.Heartbeat:Connect(function()
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-
     if autofarm and selectedMonsterId then
         if not currentTarget or not currentTarget.Parent then
             currentTarget = nil
@@ -134,61 +132,36 @@ RunService.Heartbeat:Connect(function()
         end
 
         if not currentTarget then
-            local nearestMob = nil
-            local nearestDist = math.huge
-
             for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
                 if mob:GetAttribute("Monster_Id") == selectedMonsterId then
-                    local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
-                    local mobHRP = mob:FindFirstChild("HumanoidRootPart")
-
-                    if mobHumanoid and mobHumanoid.Health > 0 and mobHRP then
-                        local dist = (mobHRP.Position - hrp.Position).Magnitude
-                        if dist < nearestDist then
-                            nearestDist = dist
-                            nearestMob = mob
-                        end
+                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        currentTarget = mob
+                        setupTargetDeathListener(humanoid)
+                        break
                     end
                 end
             end
-
-            if nearestMob then
-                currentTarget = nearestMob
-                setupTargetDeathListener(currentTarget:FindFirstChildOfClass("Humanoid"))
-            end
         end
 
-        if currentTarget and humanoid then
+        if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 0, -1)
+            if mobHRP and character and character.PrimaryPart then
+                local safeOffset = Vector3.new(0, 0, -1) -- ลอยสูงกว่าปกติ
                 local newCFrame = mobHRP.CFrame + safeOffset
                 character:SetPrimaryPartCFrame(newCFrame)
 
-                humanoid.PlatformStand = true
-                humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                -- ปิด Physics ให้บินค้าง
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                end
+
                 hasWarped = true
             end
         end
     else
-        -- คืนค่า Physics ให้เดินได้
-        if humanoid then
-            humanoid.PlatformStand = false
-            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-
         currentTarget = nil
         hasWarped = false
     end
 end)
-
-
-
-
-
-
-
-
-
-
-
