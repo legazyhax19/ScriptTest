@@ -26,7 +26,6 @@ local selectedMonsterId = nil
 local selectedMobData = nil
 local autofarm = false
 local currentTarget = nil
-local hasWarped = false
 
 -- Dropdown UI
 local monsterDropdown = Tabs.Main:AddDropdown("SelectMonster", {
@@ -85,40 +84,34 @@ local function loadMonsters()
     })
 end
 
-loadMonsters()
-
+-- ปุ่มรีเฟรชมอนสเตอร์
 Tabs.Main:AddButton({
     Title = "🔄 รีเฟรชมอนสเตอร์",
     Callback = loadMonsters
 })
 
+-- Toggle ฟาร์ม
 Tabs.Main:AddToggle("AutoFarmToggle", {
     Title = "🚀 เริ่มฟาร์ม",
     Default = false,
     Callback = function(value)
         autofarm = value
 
-local autofarm = false
-local selectedMonsterId = nil
-local currentTarget = nil
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
-
--- รีเซ็ต Physics หลังปิด AutoFarm
-local function resetPhysics()
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid:ChangeState(Enum.HumanoidStateType.Seated)
-        task.wait(0.1)
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        task.wait(0.2)
-        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        -- รีเซ็ต Physics เมื่อปิดฟาร์ม
+        if not value then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Seated)
+                task.wait(0.1)
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                task.wait(0.2)
+                humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            end
+        end
     end
-end
+})
 
--- ติดตามการตายของมอนสเตอร์
+-- ฟังก์ชันติดตามการตาย
 local function setupTargetDeathListener(humanoid)
     if humanoid and not humanoid:FindFirstChild("__AutofarmDeath") then
         local tag = Instance.new("ObjectValue")
@@ -132,7 +125,7 @@ local function setupTargetDeathListener(humanoid)
     end
 end
 
--- ฟังก์ชันฟาร์มหลัก
+-- ฟาร์มอัตโนมัติ
 local function updateAutoFarm()
     if not autofarm or not selectedMonsterId then return end
     if not currentTarget or not currentTarget.Parent then
@@ -170,6 +163,17 @@ RunService.Heartbeat:Connect(function()
         updateAutoFarm()
     else
         currentTarget = nil
-        resetPhysics()
+        -- รีเซ็ต Physics ซ้ำกรณี toggle callback ไม่ทัน
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Seated)
+            task.wait(0.1)
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            task.wait(0.2)
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        end
     end
 end)
+
+-- โหลดมอนสเตอร์ทันที
+loadMonsters()
