@@ -126,7 +126,6 @@ end
 
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
-        -- ตรวจสอบว่า target ปัจจุบันยังใช้งานได้ไหม
         if not currentTarget or not currentTarget.Parent or
            currentTarget:FindFirstChildOfClass("Humanoid") == nil or
            currentTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
@@ -134,7 +133,6 @@ RunService.Heartbeat:Connect(function()
             hasWarped = false
         end
 
-        -- ถ้ายังไม่มี target ให้หาใหม่
         if not currentTarget then
             local nearestMob = nil
             local nearestDist = math.huge
@@ -160,19 +158,23 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        -- วาร์ปไปที่ target ที่ใกล้ที่สุด
-        if currentTarget and not hasWarped then
+        -- วาร์ปค้างอยู่ข้างมอน
+        if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(3, 0, -2) 
-                local targetPos = mobHRP.CFrame.Position + safeOffset
-                local lookAt = CFrame.new(targetPos, mobHRP.CFrame.Position)
+                local mobPos = mobHRP.Position
+                local direction = (hrp.Position - mobPos).Unit
+                local distance = 8 -- อยู่ห่างจากมอน 8 studs
+                local targetPos = mobPos + direction * distance + Vector3.new(0, 5, 0)
+
+                local lookAt = CFrame.new(targetPos, mobHRP.Position)
+
+                -- ค้างตรงนี้ไปเลยจนกว่ามอนจะตาย
                 character:SetPrimaryPartCFrame(lookAt)
-                hasWarped = true
             end
         end
+
     else
         currentTarget = nil
-        hasWarped = false
     end
 end)
