@@ -104,11 +104,11 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 
 local RunService = game:GetService("RunService")
 local currentTarget = nil
-
-local lastWarpTime = 0
+local hasWarped = false
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
+        -- เคลียร์ tag event เก่า
         if humanoid:FindFirstChild("__AutofarmDeath") then
             humanoid:FindFirstChild("__AutofarmDeath"):Destroy()
         end
@@ -120,77 +120,49 @@ local function setupTargetDeathListener(humanoid)
 
         humanoid.Died:Connect(function()
             currentTarget = nil
+            hasWarped = false
         end)
     end
 end
 
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
-        if not currentTarget or not currentTarget.Parent or
-           currentTarget:FindFirstChildOfClass("Humanoid") == nil or
-           currentTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
+        if not currentTarget or not currentTarget.Parent then
             currentTarget = nil
+            hasWarped = false
         end
 
         if not currentTarget then
-            local nearestMob = nil
-            local nearestDist = math.huge
-
             for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
                 if mob:GetAttribute("Monster_Id") == selectedMonsterId then
                     local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    local mobHRP = mob:FindFirstChild("HumanoidRootPart")
-
-                    if humanoid and humanoid.Health > 0 and mobHRP then
-                        local dist = (mobHRP.Position - hrp.Position).Magnitude
-                        if dist < nearestDist then
-                            nearestDist = dist
-                            nearestMob = mob
-                        end
+                    if humanoid and humanoid.Health > 0 then
+                        currentTarget = mob
+                        setupTargetDeathListener(humanoid)
+                        break
                     end
                 end
             end
+        end
 
-            if nearestMob then
-                currentTarget = nearestMob
-                setupTargetDeathListener(currentTarget:FindFirstChildOfClass("Humanoid"))
+        if currentTarget and not hasWarped then
+            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+            if mobHRP and character and character.PrimaryPart then
+                -- ตำแหน่งที่วาร์ปไป (เฉียงนิดนึง)
+                local offset = Vector3.new(0, 3, -2)
+                local targetPos = mobHRP.Position + offset
+
+                -- ใช้ LookAt (หันไปที่มอน)
+                local lookAt = CFrame.new(targetPos, mobHRP.Position)
+
+                -- ตั้ง CFrame
+                character:SetPrimaryPartCFrame(lookAt)
+                hasWarped = true
             end
         end
-
-        -- วาร์ปแบบไม่กระเด็น
-        if currentTarget and tick() - lastWarpTime >= 0.2 then
-    local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-    if mobHRP and character and character.PrimaryPart then
-        local mobPos = mobHRP.Position
-
-        -- คำนวนทิศทางจากตัวเราหา mob
-        local direction = (mobPos - hrp.Position).Unit
-
-        -- ห่าง 2 stud (ประมาณ 2 เมตรในเกม)
-        local distance = 2
-        local offset = -direction * distance -- *ใส่ -direction เพื่อให้ห่างออกมา
-
-        -- ลอยขึ้นเล็กน้อย 1.5 stud ป้องกันชนพื้น
-        local targetPos = mobPos + offset + Vector3.new(0, 1.5, 0)
-
-        local lookAt = CFrame.new(targetPos, mobHRP.Position)
-
-        -- ปิดฟิสิกส์ล้ม
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.PlatformStand = true
-        end
-
-        character:SetPrimaryPartCFrame(lookAt)
-        lastWarpTime = tick()
-    end
-end
     else
-        -- หยุดฟาร์ม รีเซ็ตตัวละครให้ปกติ
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.PlatformStand = false
-        end
         currentTarget = nil
+        hasWarped = false
     end
 end)
+
