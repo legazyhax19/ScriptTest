@@ -103,9 +103,12 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 })
 
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
 local currentTarget = nil
 local hasWarped = false
-local MAX_DISTANCE = 1000 -- กำหนดระยะสูงสุดที่ต้องการให้หามอน
+
+local MAX_DISTANCE = 1000 -- กำหนดระยะห่างสูงสุดที่จะวาร์ปหา
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
@@ -127,45 +130,73 @@ end
 
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
-        -- ถ้า currentTarget ไม่อยู่หรือไม่ถูกต้อง รีเซ็ต
-        if not currentTarget or not currentTarget.Parent then
+        if not currentTarget or not currentTarget.Parent or
+           currentTarget:FindFirstChildOfClass("Humanoid") == nil or
+           currentTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
             currentTarget = nil
             hasWarped = false
         end
 
-        -- หาเป้าหมายใหม่ถ้าไม่มี
         if not currentTarget then
             local nearestMob = nil
             local nearestDist = math.huge
-            local hrp = character and character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
-                    if mob:GetAttribute("Monster_Id") == selectedMonsterId then
-                        local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                        local mobHRP = mob:FindFirstChild("HumanoidRootPart")
-                        if humanoid and humanoid.Health > 0 and mobHRP then
-                            local dist = (mobHRP.Position - hrp.Position).Magnitude
-                            if dist < nearestDist and dist <= MAX_DISTANCE then
-                                nearestDist = dist
-                                nearestMob = mob
-                            end
+
+            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+                if mob:GetAttribute("Monster_Id") == selectedMonsterId then
+                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
+                    local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+
+                    if humanoid and humanoid.Health > 0 and mobHRP then
+                        local dist = (mobHRP.Position - hrp.Position).Magnitude
+                        if dist < nearestDist and dist <= MAX_DISTANCE then
+                            nearestDist = dist
+                            nearestMob = mob
                         end
                     end
                 end
             end
+
             if nearestMob then
                 currentTarget = nearestMob
                 setupTargetDeathListener(currentTarget:FindFirstChildOfClass("Humanoid"))
             end
         end
 
-        -- วาร์ปถ้ายังไม่ได้วาร์ป
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 0, -2) -- ลอยสูง 3 studs ขยับไปข้างหลัง 2 studs
-                character:SetPrimaryPartCFrame(mobHRP.CFrame + safeOffset)
+                -- ยิง Raycast หา ground ใต้ตัวมอน
+                local origin = mobHRP.Position + Vector3.new(0, 10, 0)
+                local direction = Vector3.new(0, -50, 0)
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterDescendantsInstances = {character}
+                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+                local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
+
+                local groundY = nil
+                if raycastResult then
+                    groundY = raycastResult.Position.Y
+                else
+                    groundY = mobHRP.Position.Y - 3
+                end
+
+                local targetPosition = Vector3.new(mobHRP.Position.X, groundY + 3, mobHRP.Position.Z)
+                local lookAt = CFrame.new(targetPosition, mobHRP.Position)
+
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.PlatformStand = true
+                end
+
+                character:SetPrimaryPartCFrame(lookAt)
                 hasWarped = true
+
+                delay(0.1, function()
+                    if humanoid then
+                        humanoid.PlatformStand = false
+                    end
+                end)
             end
         end
     else
@@ -173,5 +204,6 @@ RunService.Heartbeat:Connect(function()
         hasWarped = false
     end
 end)
+
 
 
