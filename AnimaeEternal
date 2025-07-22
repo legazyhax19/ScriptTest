@@ -105,12 +105,7 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 local RunService = game:GetService("RunService")
 local currentTarget = nil
 local hasWarped = false
-local bp, bg -- BodyPosition กับ BodyGyro
-
-local function removeBodyControls()
-    if bp then bp:Destroy() bp = nil end
-    if bg then bg:Destroy() bg = nil end
-end
+local MAX_DISTANCE = 1000 -- กำหนดระยะสูงสุดที่ต้องการให้หามอน
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
@@ -126,80 +121,56 @@ local function setupTargetDeathListener(humanoid)
         humanoid.Died:Connect(function()
             currentTarget = nil
             hasWarped = false
-            removeBodyControls()
         end)
     end
 end
 
-local function getSafeHoverPosition(mobHRP)
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-
-    local hoverHeight = 5 -- ลอยสูง 5 studs เหนือหัวมอน
-    local targetPos = mobHRP.Position + Vector3.new(0, hoverHeight, 0)
-
-    -- Raycast เช็คว่ามีพื้น/part ด้านบนบังไหม (ป้องกันติด)
-    local rayDirection = Vector3.new(0, 1, 0) * 3 -- เช็คขึ้นบน 3 studs
-    local result = workspace:Raycast(targetPos, rayDirection, raycastParams)
-
-    if result then
-        -- ถ้ามี part ด้านบน เลื่อนต่ำลงมาเล็กน้อย
-        targetPos = targetPos - Vector3.new(0, 1, 0)
-    end
-
-    return targetPos
-end
-
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
-        if not currentTarget or not currentTarget.Parent or
-           currentTarget:FindFirstChildOfClass("Humanoid") == nil or
-           currentTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
+        -- ถ้า currentTarget ไม่อยู่หรือไม่ถูกต้อง รีเซ็ต
+        if not currentTarget or not currentTarget.Parent then
             currentTarget = nil
             hasWarped = false
-            removeBodyControls()
         end
 
+        -- หาเป้าหมายใหม่ถ้าไม่มี
         if not currentTarget then
-            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
-                if mob:GetAttribute("Monster_Id") == selectedMonsterId then
-                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        currentTarget = mob
-                        setupTargetDeathListener(humanoid)
-                        break
+            local nearestMob = nil
+            local nearestDist = math.huge
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+                    if mob:GetAttribute("Monster_Id") == selectedMonsterId then
+                        local humanoid = mob:FindFirstChildOfClass("Humanoid")
+                        local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+                        if humanoid and humanoid.Health > 0 and mobHRP then
+                            local dist = (mobHRP.Position - hrp.Position).Magnitude
+                            if dist < nearestDist and dist <= MAX_DISTANCE then
+                                nearestDist = dist
+                                nearestMob = mob
+                            end
+                        end
                     end
                 end
             end
+            if nearestMob then
+                currentTarget = nearestMob
+                setupTargetDeathListener(currentTarget:FindFirstChildOfClass("Humanoid"))
+            end
         end
 
+        -- วาร์ปถ้ายังไม่ได้วาร์ป
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            local hrp = character:FindFirstChild("HumanoidRootPart")
-            if mobHRP and hrp then
-                removeBodyControls()
-
-                bp = Instance.new("BodyPosition", hrp)
-                bp.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-                bp.P = 1e4
-
-                bg = Instance.new("BodyGyro", hrp)
-                bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-                bg.P = 1e4
-
-                local safePos = getSafeHoverPosition(mobHRP)
-
-                bp.Position = safePos
-                bg.CFrame = CFrame.new(safePos, mobHRP.Position)
-
+            if mobHRP and character and character.PrimaryPart then
+                local safeOffset = Vector3.new(0, 3, -2) -- ลอยสูง 3 studs ขยับไปข้างหลัง 2 studs
+                character:SetPrimaryPartCFrame(mobHRP.CFrame + safeOffset)
                 hasWarped = true
             end
         end
     else
         currentTarget = nil
         hasWarped = false
-        removeBodyControls()
     end
 end)
 
