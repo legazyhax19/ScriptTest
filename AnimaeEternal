@@ -159,28 +159,32 @@ RunService.Heartbeat:Connect(function()
 
         -- วาร์ปแบบไม่กระเด็น
         if currentTarget and tick() - lastWarpTime >= 0.2 then
-            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and character.PrimaryPart then
-                local mobPos = mobHRP.Position
+    local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+    if mobHRP and character and character.PrimaryPart then
+        local mobPos = mobHRP.Position
 
-                local direction = (mobPos - hrp.Position).Unit
-                local distance = 0.05 -- ประมาณ 1.5 เซน
-                local offset = direction * distance
+        -- คำนวนทิศทางจากตัวเราหา mob
+        local direction = (mobPos - hrp.Position).Unit
 
-                local targetPos = mobPos + offset + Vector3.new(0, 3, 0)
+        -- ห่าง 2 stud (ประมาณ 2 เมตรในเกม)
+        local distance = 2
+        local offset = -direction * distance -- *ใส่ -direction เพื่อให้ห่างออกมา
 
-                local lookAt = CFrame.new(targetPos, mobHRP.Position)
+        -- ลอยขึ้นเล็กน้อย 1.5 stud ป้องกันชนพื้น
+        local targetPos = mobPos + offset + Vector3.new(0, 1.5, 0)
 
-                -- ปิดฟิสิกส์ล้ม
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid.PlatformStand = true
-                end
+        local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-                character:SetPrimaryPartCFrame(lookAt)
-                lastWarpTime = tick()
-            end
+        -- ปิดฟิสิกส์ล้ม
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = true
         end
+
+        character:SetPrimaryPartCFrame(lookAt)
+        lastWarpTime = tick()
+    end
+end
     else
         -- หยุดฟาร์ม รีเซ็ตตัวละครให้ปกติ
         local humanoid = character:FindFirstChildOfClass("Humanoid")
