@@ -147,25 +147,26 @@ RunService.Heartbeat:Connect(function()
 
         if currentTarget and not hasWarped then
     local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-    if mobHRP and character and character.PrimaryPart then
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if mobHRP and character and character.PrimaryPart and humanoid then
+        -- ปิดการล้ม
+        humanoid.PlatformStand = true
 
-        -- เช็คระยะก่อน ถ้าใกล้อยู่แล้วไม่ต้องวาร์ปซ้ำ
-        local dist = (mobHRP.Position - hrp.Position).Magnitude
-        if dist > 3 then -- ถ้าห่างเกิน 3 studs ค่อยวาร์ป
-            local offset = Vector3.new(0, 3, -2)
-            local targetPos = mobHRP.Position + offset
+        local offset = Vector3.new(0, 3, -2)
+        local targetPos = mobHRP.Position + offset
+        local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-            local lookAt = CFrame.new(targetPos, mobHRP.Position)
+        character:SetPrimaryPartCFrame(lookAt)
 
-            character:SetPrimaryPartCFrame(lookAt)
-            hasWarped = true
-        else
-            -- แค่หัน ไม่ต้องวาร์ปซ้ำ
-            local currentPos = hrp.Position + Vector3.new(0, 3, -2)
-            local lookAt = CFrame.new(currentPos, mobHRP.Position)
-            character:SetPrimaryPartCFrame(lookAt)
-            hasWarped = true
-        end
+        -- ตั้ง flag ว่าวาร์ปแล้ว
+        hasWarped = true
+
+        -- รอสั้นๆ แล้วเปิด PlatformStand กลับ
+        task.delay(0.3, function()
+            if humanoid then
+                humanoid.PlatformStand = false
+            end
+        end)
     end
 end
 
