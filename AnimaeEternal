@@ -105,23 +105,11 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 local RunService = game:GetService("RunService")
 local currentTarget = nil
 local hasWarped = false
+local bp, bg -- ตัวแปรเก็บ BodyPosition กับ BodyGyro
 
-local function setupTargetDeathListener(humanoid)
-    if humanoid then
-        if humanoid:FindFirstChild("__AutofarmDeath") then
-            humanoid:FindFirstChild("__AutofarmDeath"):Destroy()
-        end
-
-        local tag = Instance.new("ObjectValue")
-        tag.Name = "__AutofarmDeath"
-        tag.Value = humanoid
-        tag.Parent = humanoid
-
-        humanoid.Died:Connect(function()
-            currentTarget = nil
-            hasWarped = false
-        end)
-    end
+local function removeBodyControls()
+    if bp then bp:Destroy() bp = nil end
+    if bg then bg:Destroy() bg = nil end
 end
 
 RunService.Heartbeat:Connect(function()
@@ -131,6 +119,7 @@ RunService.Heartbeat:Connect(function()
            currentTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
             currentTarget = nil
             hasWarped = false
+            removeBodyControls()
         end
 
         if not currentTarget then
@@ -149,30 +138,36 @@ RunService.Heartbeat:Connect(function()
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if mobHRP and character and character.PrimaryPart and humanoid then
-                -- ปิดการชน และ ป้องกันล้มชั่วคราว
-                mobHRP.CanCollide = false
-                humanoid.PlatformStand = true
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+            if mobHRP and character and humanoid and hrp then
+                -- ป้องกันล้มและคุมตำแหน่งด้วย BodyPosition, BodyGyro
+                removeBodyControls()
 
-                local offset = Vector3.new(0, 5, -2) -- สูงขึ้น 5 studs
+                bp = Instance.new("BodyPosition", hrp)
+                bp.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                bp.P = 1e4
+
+                bg = Instance.new("BodyGyro", hrp)
+                bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+                bg.P = 1e4
+
+                local offset = Vector3.new(0, 5, -2) -- วาร์ปสูงขึ้นเล็กน้อย
                 local targetPos = mobHRP.Position + offset
-
-                local lookAt = CFrame.new(targetPos, mobHRP.Position)
-
-                character:SetPrimaryPartCFrame(lookAt)
+                bp.Position = targetPos
+                bg.CFrame = CFrame.new(targetPos, mobHRP.Position)
 
                 hasWarped = true
 
-                -- คืนสถานะหลังวาร์ป
-                task.delay(0.3, function()
-                    mobHRP.CanCollide = true
-                    humanoid.PlatformStand = false
+                -- รอ 0.5 วิ แล้วลบ BodyPosition และ BodyGyro เพื่อคืนสภาพปกติ
+                task.delay(0.5, function()
+                    removeBodyControls()
                 end)
             end
         end
     else
         currentTarget = nil
         hasWarped = false
+        removeBodyControls()
     end
 end)
 
