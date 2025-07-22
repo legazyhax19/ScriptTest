@@ -124,13 +124,14 @@ local function setupTargetDeathListener(humanoid)
     end
 end
 
+local lastWarpTime = 0
+
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
         if not currentTarget or not currentTarget.Parent or
            currentTarget:FindFirstChildOfClass("Humanoid") == nil or
            currentTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
             currentTarget = nil
-            hasWarped = false
         end
 
         if not currentTarget then
@@ -158,21 +159,28 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        -- วาร์ปค้างอยู่ข้างมอน
-        if currentTarget then
+        -- วาร์ปแบบปลอดภัย
+        if currentTarget and tick() - lastWarpTime >= 0.2 then
     local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
     if mobHRP and character and character.PrimaryPart then
         local mobPos = mobHRP.Position
-        local direction = (hrp.Position - mobPos).Unit
 
-        local distance = 0.05 -- ประมาณ 1.5 เซนติเมตร (0.05 studs)
-        local targetPos = mobPos + direction * distance + Vector3.new(0, 3, 0) -- ลอยสูง 3 studs (กันทะลุพื้น)
+        -- คำนวนทิศทางไปที่มอน
+        local direction = (mobPos - hrp.Position).Unit
+
+        -- ห่างออกไปแค่ 0.05 studs (ประมาณ 1-2 เซน)
+        local distance = 0.05
+        local offset = direction * distance
+
+        -- ลอยสูงขึ้น 3 studs ป้องกันชนพื้น
+        local targetPos = mobPos + offset + Vector3.new(0, 3, 0)
 
         local lookAt = CFrame.new(targetPos, mobHRP.Position)
+
         character:SetPrimaryPartCFrame(lookAt)
+        lastWarpTime = tick()
     end
 end
-
     else
         currentTarget = nil
     end
