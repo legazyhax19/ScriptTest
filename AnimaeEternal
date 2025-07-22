@@ -108,7 +108,6 @@ local hasWarped = false
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
-        -- เคลียร์ tag event เก่า
         if humanoid:FindFirstChild("__AutofarmDeath") then
             humanoid:FindFirstChild("__AutofarmDeath"):Destroy()
         end
@@ -127,7 +126,9 @@ end
 
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
-        if not currentTarget or not currentTarget.Parent then
+        if not currentTarget or not currentTarget.Parent or
+           currentTarget:FindFirstChildOfClass("Humanoid") == nil or
+           currentTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
             currentTarget = nil
             hasWarped = false
         end
@@ -146,30 +147,29 @@ RunService.Heartbeat:Connect(function()
         end
 
         if currentTarget and not hasWarped then
-    local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if mobHRP and character and character.PrimaryPart and humanoid then
-        -- ปิดการล้ม
-        humanoid.PlatformStand = true
+            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if mobHRP and character and character.PrimaryPart and humanoid then
+                -- ปิดการชน และ ป้องกันล้มชั่วคราว
+                mobHRP.CanCollide = false
+                humanoid.PlatformStand = true
 
-        local offset = Vector3.new(0, 3, -2)
-        local targetPos = mobHRP.Position + offset
-        local lookAt = CFrame.new(targetPos, mobHRP.Position)
+                local offset = Vector3.new(0, 5, -2) -- สูงขึ้น 5 studs
+                local targetPos = mobHRP.Position + offset
 
-        character:SetPrimaryPartCFrame(lookAt)
+                local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-        -- ตั้ง flag ว่าวาร์ปแล้ว
-        hasWarped = true
+                character:SetPrimaryPartCFrame(lookAt)
 
-        -- รอสั้นๆ แล้วเปิด PlatformStand กลับ
-        task.delay(0.3, function()
-            if humanoid then
-                humanoid.PlatformStand = false
+                hasWarped = true
+
+                -- คืนสถานะหลังวาร์ป
+                task.delay(0.3, function()
+                    mobHRP.CanCollide = true
+                    humanoid.PlatformStand = false
+                end)
             end
-        end)
-    end
-end
-
+        end
     else
         currentTarget = nil
         hasWarped = false
