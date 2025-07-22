@@ -165,13 +165,15 @@ RunService.Heartbeat:Connect(function()
                 local newCFrame = mobHRP.CFrame + safeOffset
                 character:SetPrimaryPartCFrame(newCFrame)
 
+                humanoid.PlatformStand = true
                 humanoid:ChangeState(Enum.HumanoidStateType.Physics)
                 hasWarped = true
             end
         end
     else
-        -- คืนค่าการเคลื่อนไหวเป็นปกติ
+        -- คืนค่า Physics ให้เดินได้
         if humanoid then
+            humanoid.PlatformStand = false
             humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
         end
 
