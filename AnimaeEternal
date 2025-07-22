@@ -115,7 +115,7 @@ local hasWarped = false
 
 player.CharacterAdded:Connect(function(char)
     character = char
-    hrp = char:WaitForChild("HumanoidRootPart")
+    hrp = character:WaitForChild("HumanoidRootPart")
 end)
 
 local function setupTargetDeathListener(humanoid)
@@ -178,17 +178,30 @@ RunService.Heartbeat:Connect(function()
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and hrp then
-                local targetPos = mobHRP.Position + Vector3.new(0, 2, 0)
-                local lookAt = CFrame.new(targetPos, mobHRP.Position)
+                local offset = Vector3.new(0, 4.5, -2)
+                local targetPos = mobHRP.Position + offset
 
-                -- สร้าง Tween แบบเร็วมาก
-                local fastTween = TweenService:Create(hrp, TweenInfo.new(0.05, Enum.EasingStyle.Linear), { CFrame = lookAt })
-                fastTween:Play()
+                -- หันเฉพาะแนวนอนเพื่อป้องกันตัวล้ม
+                local horizontalLook = Vector3.new(mobHRP.Position.X, targetPos.Y, mobHRP.Position.Z)
+                local lookAt = CFrame.new(targetPos, horizontalLook)
 
-                -- ปรับตำแหน่งอีกครั้งเพื่อความเป๊ะหลัง tween
+                -- หยุดฟิสิกส์ก่อนวาร์ป
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                end
+
+                -- Tween วาร์ปแบบเร็วสุด
+                local tween = TweenService:Create(hrp, TweenInfo.new(0.05, Enum.EasingStyle.Linear), { CFrame = lookAt })
+                tween:Play()
+
+                -- ปรับตำแหน่งเป๊ะหลัง tween จบ
                 task.delay(0.06, function()
                     if hrp then
                         hrp.CFrame = lookAt
+                    end
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Running)
                     end
                 end)
 
@@ -200,6 +213,7 @@ RunService.Heartbeat:Connect(function()
         hasWarped = false
     end
 end)
+
 
 
 
