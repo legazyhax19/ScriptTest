@@ -160,19 +160,18 @@ RunService.Heartbeat:Connect(function()
 
         -- วาร์ปค้างอยู่ข้างมอน
         if currentTarget then
-            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and character.PrimaryPart then
-                local mobPos = mobHRP.Position
-                local direction = (hrp.Position - mobPos).Unit
-                local distance = 1 -- อยู่ห่างจากมอน 8 studs
-                local targetPos = mobPos + direction * distance + Vector3.new(0, 0, 0)
+    local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+    if mobHRP and character and character.PrimaryPart then
+        local mobPos = mobHRP.Position
+        local direction = (hrp.Position - mobPos).Unit
 
-                local lookAt = CFrame.new(targetPos, mobHRP.Position)
+        local distance = 0.05 -- ประมาณ 1.5 เซนติเมตร (0.05 studs)
+        local targetPos = mobPos + direction * distance + Vector3.new(0, 3, 0) -- ลอยสูง 3 studs (กันทะลุพื้น)
 
-                -- ค้างตรงนี้ไปเลยจนกว่ามอนจะตาย
-                character:SetPrimaryPartCFrame(lookAt)
-            end
-        end
+        local lookAt = CFrame.new(targetPos, mobHRP.Position)
+        character:SetPrimaryPartCFrame(lookAt)
+    end
+end
 
     else
         currentTarget = nil
