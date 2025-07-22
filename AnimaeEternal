@@ -146,20 +146,29 @@ RunService.Heartbeat:Connect(function()
         end
 
         if currentTarget and not hasWarped then
-            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and character.PrimaryPart then
-                -- ตำแหน่งที่วาร์ปไป (เฉียงนิดนึง)
-                local offset = Vector3.new(0, 3, -2)
-                local targetPos = mobHRP.Position + offset
+    local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+    if mobHRP and character and character.PrimaryPart then
 
-                -- ใช้ LookAt (หันไปที่มอน)
-                local lookAt = CFrame.new(targetPos, mobHRP.Position)
+        -- เช็คระยะก่อน ถ้าใกล้อยู่แล้วไม่ต้องวาร์ปซ้ำ
+        local dist = (mobHRP.Position - hrp.Position).Magnitude
+        if dist > 3 then -- ถ้าห่างเกิน 3 studs ค่อยวาร์ป
+            local offset = Vector3.new(0, 3, -2)
+            local targetPos = mobHRP.Position + offset
 
-                -- ตั้ง CFrame
-                character:SetPrimaryPartCFrame(lookAt)
-                hasWarped = true
-            end
+            local lookAt = CFrame.new(targetPos, mobHRP.Position)
+
+            character:SetPrimaryPartCFrame(lookAt)
+            hasWarped = true
+        else
+            -- แค่หัน ไม่ต้องวาร์ปซ้ำ
+            local currentPos = hrp.Position + Vector3.new(0, 3, -2)
+            local lookAt = CFrame.new(currentPos, mobHRP.Position)
+            character:SetPrimaryPartCFrame(lookAt)
+            hasWarped = true
         end
+    end
+end
+
     else
         currentTarget = nil
         hasWarped = false
