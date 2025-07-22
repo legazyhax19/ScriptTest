@@ -132,26 +132,38 @@ RunService.Heartbeat:Connect(function()
         end
 
         if not currentTarget then
+            local nearestMob = nil
+            local nearestDist = math.huge
+
             for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
                 if mob:GetAttribute("Monster_Id") == selectedMonsterId then
                     local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        currentTarget = mob
-                        setupTargetDeathListener(humanoid)
-                        break
+                    local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+
+                    if humanoid and humanoid.Health > 0 and mobHRP then
+                        local dist = (mobHRP.Position - hrp.Position).Magnitude
+                        if dist < nearestDist then
+                            nearestDist = dist
+                            nearestMob = mob
+                        end
                     end
                 end
+            end
+
+            if nearestMob then
+                currentTarget = nearestMob
+                setupTargetDeathListener(currentTarget:FindFirstChildOfClass("Humanoid"))
             end
         end
 
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 0, -1) -- ลอยสูงกว่าปกติ
+                local safeOffset = Vector3.new(0, 0, -1) -- แนบเนียนกับพื้นไม่กระเด้ง
                 local newCFrame = mobHRP.CFrame + safeOffset
                 character:SetPrimaryPartCFrame(newCFrame)
 
-                -- ปิด Physics ให้บินค้าง
+                -- ค้างบนอากาศไม่ล้ม
                 local humanoid = character:FindFirstChildOfClass("Humanoid")
                 if humanoid then
                     humanoid:ChangeState(Enum.HumanoidStateType.Physics)
