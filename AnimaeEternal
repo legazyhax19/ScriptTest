@@ -1,0 +1,151 @@
+-- โหลด Fluent GUI
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local Window = Fluent:CreateWindow({
+    Title = "HappyHUB",
+    SubTitle = "By Legazyhax19",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(520, 400),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "swords" })
+}
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- ตัวแปรสำคัญ
+local monsterMap = {} -- [ชื่อ Title] = { Id = id, Health = health, Reference = mob }
+local selectedMonsterId = nil
+local selectedMobData = nil
+local autofarm = false
+local lastTarget = nil
+
+-- Dropdown UI
+local monsterDropdown = Tabs.Main:AddDropdown("SelectMonster", {
+    Title = "เลือกมอนสเตอร์",
+    Values = {},
+    Multi = false,
+    Default = nil
+})
+
+monsterDropdown:OnChanged(function(title)
+    selectedMobData = monsterMap[title]
+    selectedMonsterId = selectedMobData and selectedMobData.Id
+    Fluent:Notify({
+        Title = "เลือกแล้ว",
+        Content = "ID: " .. tostring(selectedMonsterId),
+        Duration = 3
+    })
+end)
+
+-- ฟังก์ชันโหลดมอนสเตอร์
+local function loadMonsters()
+    monsterMap = {}
+    selectedMonsterId = nil
+    selectedMobData = nil
+    monsterDropdown:SetValue(nil) -- รีเซ็ต dropdown
+    
+    local titles = {}
+    for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+        local id = mob:GetAttribute("Monster_Id")
+        local title = mob:GetAttribute("Title")
+        local health = tonumber(mob:GetAttribute("Health"))
+
+        if id and title and not monsterMap[title] then
+            monsterMap[title] = {
+                Id = id,
+                Health = health or 0,
+                Reference = mob
+            }
+            table.insert(titles, title)
+        end
+    end
+    
+    monsterDropdown:SetValues(titles)
+    
+    Fluent:Notify({
+        Title = "โหลดสำเร็จ",
+        Content = "พบ " .. #titles .. " ตัว\n(ยกเลิกการเลือกมอนสเตอร์)",
+        Duration = 3
+    })
+end
+
+-- โหลดมอนสเตอร์ทันทีหลังสร้าง dropdown
+loadMonsters()
+
+-- ปุ่ม Refresh รายชื่อมอนสเตอร์
+Tabs.Main:AddButton({
+    Title = "🔄 รีเฟรชมอนสเตอร์",
+    Callback = loadMonsters
+})
+
+-- Toggle เปิด/ปิด AutoFarm
+Tabs.Main:AddToggle("AutoFarmToggle", {
+    Title = "🚀 เริ่มฟาร์ม",
+    Default = false,
+    Callback = function(value)
+        autofarm = value
+    end
+})
+
+local RunService = game:GetService("RunService")
+local currentTarget = nil
+local hasWarped = false
+
+local function setupTargetDeathListener(humanoid)
+    if humanoid then
+        if humanoid:FindFirstChild("__AutofarmDeath") then
+            humanoid:FindFirstChild("__AutofarmDeath"):Destroy()
+        end
+
+        local tag = Instance.new("ObjectValue")
+        tag.Name = "__AutofarmDeath"
+        tag.Value = humanoid
+        tag.Parent = humanoid
+
+        humanoid.Died:Connect(function()
+            currentTarget = nil
+            hasWarped = false
+        end)
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if autofarm and selectedMonsterId then
+        if not currentTarget or not currentTarget.Parent then
+            currentTarget = nil
+            hasWarped = false
+        end
+
+        if not currentTarget then
+            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+                if mob:GetAttribute("Monster_Id") == selectedMonsterId then
+                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        currentTarget = mob
+                        setupTargetDeathListener(humanoid)
+                        break
+                    end
+                end
+            end
+        end
+
+        if currentTarget and not hasWarped then
+            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+            if mobHRP and character and character.PrimaryPart then
+                local safeOffset = Vector3.new(0, 3, -2)
+                character:SetPrimaryPartCFrame(mobHRP.CFrame + safeOffset)
+                hasWarped = true
+            end
+        end
+    else
+        currentTarget = nil
+        hasWarped = false
+    end
+end)
