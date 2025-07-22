@@ -104,7 +104,8 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 
 local RunService = game:GetService("RunService")
 local currentTarget = nil
-local hasWarped = false
+
+local lastWarpTime = 0
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
@@ -119,12 +120,9 @@ local function setupTargetDeathListener(humanoid)
 
         humanoid.Died:Connect(function()
             currentTarget = nil
-            hasWarped = false
         end)
     end
 end
-
-local lastWarpTime = 0
 
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
@@ -159,29 +157,36 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        -- วาร์ปแบบปลอดภัย
+        -- วาร์ปแบบไม่กระเด็น
         if currentTarget and tick() - lastWarpTime >= 0.2 then
-    local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-    if mobHRP and character and character.PrimaryPart then
-        local mobPos = mobHRP.Position
+            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+            if mobHRP and character and character.PrimaryPart then
+                local mobPos = mobHRP.Position
 
-        -- คำนวนทิศทางไปที่มอน
-        local direction = (mobPos - hrp.Position).Unit
+                local direction = (mobPos - hrp.Position).Unit
+                local distance = 0.05 -- ประมาณ 1.5 เซน
+                local offset = direction * distance
 
-        -- ห่างออกไปแค่ 0.05 studs (ประมาณ 1-2 เซน)
-        local distance = 0.05
-        local offset = direction * distance
+                local targetPos = mobPos + offset + Vector3.new(0, 3, 0)
 
-        -- ลอยสูงขึ้น 3 studs ป้องกันชนพื้น
-        local targetPos = mobPos + offset + Vector3.new(0, 3, 0)
+                local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-        local lookAt = CFrame.new(targetPos, mobHRP.Position)
+                -- ปิดฟิสิกส์ล้ม
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.PlatformStand = true
+                end
 
-        character:SetPrimaryPartCFrame(lookAt)
-        lastWarpTime = tick()
-    end
-end
+                character:SetPrimaryPartCFrame(lookAt)
+                lastWarpTime = tick()
+            end
+        end
     else
+        -- หยุดฟาร์ม รีเซ็ตตัวละครให้ปกติ
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
         currentTarget = nil
     end
 end)
