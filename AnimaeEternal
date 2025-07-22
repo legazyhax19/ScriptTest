@@ -103,23 +103,8 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 })
 
 local RunService = game:GetService("RunService")
-
 local currentTarget = nil
 
--- วาร์ปทันทีแบบ Anchored
-local function instantWarp(targetCFrame)
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        character.HumanoidRootPart.Anchored = true
-        character:SetPrimaryPartCFrame(targetCFrame)
-
-        -- เปิด Anchored กลับหลังวาร์ป
-        task.delay(0.2, function()
-            character.HumanoidRootPart.Anchored = false
-        end)
-    end
-end
-
--- ฟังการตายของเป้าหมาย
 local function setupTargetDeathListener(humanoid)
     if humanoid then
         if humanoid:FindFirstChild("__AutofarmDeath") then
@@ -154,9 +139,11 @@ RunService.Heartbeat:Connect(function()
 
                     if humanoid and humanoid.Health > 0 and mobHRP then
                         local dist = (mobHRP.Position - hrp.Position).Magnitude
-                        if dist < 1000 and dist < nearestDist then
-                            nearestDist = dist
-                            nearestMob = mob
+                        if dist < 1000 then
+                            if dist < nearestDist then
+                                nearestDist = dist
+                                nearestMob = mob
+                            end
                         end
                     end
                 end
@@ -168,21 +155,30 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
+        -- วาร์ปแบบ "Physics Lock" ค้างบนหัวมอน
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local targetPos = mobHRP.Position + Vector3.new(0, 4, 0)
+                local mobPos = mobHRP.Position
+
+                -- ตำแหน่งบนหัวมอน 2 stud
+                local targetPos = mobPos + Vector3.new(0, 2, 0)
+
+                -- หันไปที่มอนเสมอ
                 local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-                if (character.PrimaryPart.Position - targetPos).Magnitude > 0.2 then
-                    instantWarp(lookAt)
-                end
+                -- หยุดฟิสิกส์
+                character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+
+                -- ล็อคตัวไว้เลย
+                character:SetPrimaryPartCFrame(lookAt)
             end
         end
     else
         currentTarget = nil
     end
 end)
+
 
 
 
