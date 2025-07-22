@@ -103,43 +103,20 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 })
 
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 
 local currentTarget = nil
 
--- เปิด/ปิด Noclip
-local function setNoclip(enabled)
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not enabled
-        end
-    end
-end
+-- วาร์ปทันทีแบบ Anchored
+local function instantWarp(targetCFrame)
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        character.HumanoidRootPart.Anchored = true
+        character:SetPrimaryPartCFrame(targetCFrame)
 
--- วาร์ปแบบปลอดภัยและนุ่มนวล
-local function safeWarp(targetCFrame)
-    if character and character.PrimaryPart then
-        setNoclip(true) -- ปิดการชนก่อนวาร์ป
-
-        local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-        local goal = {CFrame = targetCFrame}
-        TweenService:Create(character.PrimaryPart, tweenInfo, goal):Play()
-
-        -- เปิดกลับหลังวาร์ป
-        task.delay(0.25, function()
-            setNoclip(false)
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Running)
-            end
+        -- เปิด Anchored กลับหลังวาร์ป
+        task.delay(0.2, function()
+            character.HumanoidRootPart.Anchored = false
         end)
     end
-end
-
--- เช็คสถานะก่อนวาร์ป
-local function canWarp()
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    return humanoid and humanoid.Health > 0 and humanoid:GetState() == Enum.HumanoidStateType.Running
 end
 
 -- ฟังการตายของเป้าหมาย
@@ -160,7 +137,6 @@ local function setupTargetDeathListener(humanoid)
     end
 end
 
--- ลูปหลัก AutoFarm
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
         if not currentTarget or not currentTarget.Parent then
@@ -195,11 +171,11 @@ RunService.Heartbeat:Connect(function()
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local targetPos = mobHRP.Position + Vector3.new(0, 4, 0) -- ลอยขึ้น 4 studs
+                local targetPos = mobHRP.Position + Vector3.new(0, 4, 0)
                 local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-                if (character.PrimaryPart.Position - targetPos).Magnitude > 0.2 and canWarp() then
-                    safeWarp(lookAt)
+                if (character.PrimaryPart.Position - targetPos).Magnitude > 0.2 then
+                    instantWarp(lookAt)
                 end
             end
         end
