@@ -104,11 +104,14 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 
 local RunService = game:GetService("RunService")
 local currentTarget = nil
+local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
-        if humanoid:FindFirstChild("__AutofarmDeath") then
-            humanoid:FindFirstChild("__AutofarmDeath"):Destroy()
+        local existingTag = humanoid:FindFirstChild("__AutofarmDeath")
+        if existingTag then
+            existingTag:Destroy()
         end
 
         local tag = Instance.new("ObjectValue")
@@ -116,6 +119,7 @@ local function setupTargetDeathListener(humanoid)
         tag.Value = humanoid
         tag.Parent = humanoid
 
+        -- one-time connection (optional: can store reference if needed)
         humanoid.Died:Connect(function()
             currentTarget = nil
         end)
@@ -124,26 +128,23 @@ end
 
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
-        if not currentTarget or not currentTarget.Parent then
+        if not currentTarget or not currentTarget:IsDescendantOf(workspace) then
             currentTarget = nil
         end
 
         if not currentTarget then
-            local nearestMob = nil
-            local nearestDist = math.huge
+            local nearestMob, nearestDist = nil, math.huge
 
-            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+            for _, mob in workspace.Debris.Monsters:GetChildren() do
                 if mob:GetAttribute("Monster_Id") == selectedMonsterId then
                     local humanoid = mob:FindFirstChildOfClass("Humanoid")
                     local mobHRP = mob:FindFirstChild("HumanoidRootPart")
 
                     if humanoid and humanoid.Health > 0 and mobHRP then
                         local dist = (mobHRP.Position - hrp.Position).Magnitude
-                        if dist < 1000 then
-                            if dist < nearestDist then
-                                nearestDist = dist
-                                nearestMob = mob
-                            end
+                        if dist < 1000 and dist < nearestDist then
+                            nearestDist = dist
+                            nearestMob = mob
                         end
                     end
                 end
@@ -155,22 +156,17 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        -- วาร์ปแบบ "Physics Lock" ค้างบนหัวมอน
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and character.PrimaryPart then
-                local mobPos = mobHRP.Position
-
-                -- ตำแหน่งบนหัวมอน 2 stud
-                local targetPos = mobPos + Vector3.new(0, 2, 0)
-
-                -- หันไปที่มอนเสมอ
+            if mobHRP then
+                local targetPos = mobHRP.Position + Vector3.new(0, 2, 0)
                 local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-                -- หยุดฟิสิกส์
-                character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                end
 
-                -- ล็อคตัวไว้เลย
                 character:SetPrimaryPartCFrame(lookAt)
             end
         end
@@ -178,7 +174,6 @@ RunService.Heartbeat:Connect(function()
         currentTarget = nil
     end
 end)
-
 
 
 
