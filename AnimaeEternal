@@ -125,6 +125,8 @@ local function setupTargetDeathListener(humanoid)
 end
 
 RunService.Heartbeat:Connect(function()
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+
     if autofarm and selectedMonsterId then
         if not currentTarget or not currentTarget.Parent then
             currentTarget = nil
@@ -137,10 +139,10 @@ RunService.Heartbeat:Connect(function()
 
             for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
                 if mob:GetAttribute("Monster_Id") == selectedMonsterId then
-                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
+                    local mobHumanoid = mob:FindFirstChildOfClass("Humanoid")
                     local mobHRP = mob:FindFirstChild("HumanoidRootPart")
 
-                    if humanoid and humanoid.Health > 0 and mobHRP then
+                    if mobHumanoid and mobHumanoid.Health > 0 and mobHRP then
                         local dist = (mobHRP.Position - hrp.Position).Magnitude
                         if dist < nearestDist then
                             nearestDist = dist
@@ -156,23 +158,23 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        if currentTarget then
+        if currentTarget and humanoid then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 0, -1) -- แนบเนียนกับพื้นไม่กระเด้ง
+            if mobHRP and character.PrimaryPart then
+                local safeOffset = Vector3.new(0, 0, -1)
                 local newCFrame = mobHRP.CFrame + safeOffset
                 character:SetPrimaryPartCFrame(newCFrame)
 
-                -- ค้างบนอากาศไม่ล้ม
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-                end
-
+                humanoid:ChangeState(Enum.HumanoidStateType.Physics)
                 hasWarped = true
             end
         end
     else
+        -- คืนค่าการเคลื่อนไหวเป็นปกติ
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+
         currentTarget = nil
         hasWarped = false
     end
