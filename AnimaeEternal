@@ -139,11 +139,9 @@ RunService.Heartbeat:Connect(function()
 
                     if humanoid and humanoid.Health > 0 and mobHRP then
                         local dist = (mobHRP.Position - hrp.Position).Magnitude
-                        if dist < 1000 then
-                            if dist < nearestDist then
-                                nearestDist = dist
-                                nearestMob = mob
-                            end
+                        if dist < 1000 and dist < nearestDist then
+                            nearestDist = dist
+                            nearestMob = mob
                         end
                     end
                 end
@@ -155,23 +153,32 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        -- วาร์ปเร็วแบบ "ไม่มีหน่วง" ค้างบนหัวมอน
+        -- วาร์ปไปบนหัวมอนอย่างเนียน
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local mobPos = mobHRP.Position
 
-                -- ตำแหน่งบนหัวมอน 2 stud
+                -- ปิด Physics ชั่วคราว
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                end
+
+                local mobPos = mobHRP.Position
                 local targetPos = mobPos + Vector3.new(0, 2, 0)
 
-                -- หันไปที่มอนเสมอ
                 local lookAt = CFrame.new(targetPos, mobHRP.Position)
-
                 character:SetPrimaryPartCFrame(lookAt)
             end
         end
     else
         currentTarget = nil
+
+        -- เปิด Physics กลับมา
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
     end
 end)
 
