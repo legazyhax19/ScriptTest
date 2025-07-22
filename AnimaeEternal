@@ -107,16 +107,37 @@ local TweenService = game:GetService("TweenService")
 
 local currentTarget = nil
 
--- วาร์ปแบบนุ่มนวล
-local function smoothWarp(targetCFrame)
+-- วาร์ปแบบนุ่มนวล + ป้องกันการชน
+local function safeWarp(targetCFrame)
     if character and character.PrimaryPart then
+        -- ปิด Collision ก่อนวาร์ป
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+
+        -- วาร์ปแบบ Tween
         local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
         local goal = {CFrame = targetCFrame}
         TweenService:Create(character.PrimaryPart, tweenInfo, goal):Play()
+
+        -- เปิด Collision กลับหลังวาร์ป
+        task.delay(0.25, function()
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            end
+        end)
     end
 end
 
--- ตรวจสถานะก่อนวาร์ป
+-- ตรวจสถานะตัวก่อนวาร์ป
 local function canWarp()
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     return humanoid and humanoid.Health > 0 and humanoid:GetState() == Enum.HumanoidStateType.Running
@@ -174,12 +195,11 @@ RunService.Heartbeat:Connect(function()
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local targetPos = mobHRP.Position + Vector3.new(0, 2, 0)
+                local targetPos = mobHRP.Position + Vector3.new(0, 4, 0) -- ลอยขึ้น 4 studs
                 local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-                -- ไม่วาร์ปถ้าห่างน้อย
-                if (character.PrimaryPart.Position - targetPos).Magnitude > 0.1 and canWarp() then
-                    smoothWarp(lookAt)
+                if (character.PrimaryPart.Position - targetPos).Magnitude > 0.2 and canWarp() then
+                    safeWarp(lookAt)
                 end
             end
         end
