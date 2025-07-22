@@ -132,17 +132,31 @@ RunService.Heartbeat:Connect(function()
         end
 
         if not currentTarget then
-            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
-                if mob:GetAttribute("Monster_Id") == selectedMonsterId then
-                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        currentTarget = mob
-                        setupTargetDeathListener(humanoid)
-                        break
-                    end
+    local nearestMob = nil
+    local nearestDist = math.huge
+
+    for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+        if mob:GetAttribute("Monster_Id") == selectedMonsterId then
+            local humanoid = mob:FindFirstChildOfClass("Humanoid")
+            local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+
+            if humanoid and humanoid.Health > 0 and mobHRP then
+                local dist = (mobHRP.Position - hrp.Position).Magnitude
+                if dist < nearestDist then
+                    nearestDist = dist
+                    nearestMob = mob
                 end
             end
         end
+    end
+
+    if nearestMob then
+        currentTarget = nearestMob
+        local humanoid = currentTarget:FindFirstChildOfClass("Humanoid")
+        setupTargetDeathListener(humanoid)
+    end
+end
+
 
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
