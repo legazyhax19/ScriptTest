@@ -103,9 +103,22 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 })
 
 local RunService = game:GetService("RunService")
-local currentTarget = nil
-local character = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
+local camera = workspace.CurrentCamera
+camera.CameraSubject = character:FindFirstChildOfClass("Humanoid")
+
+local currentTarget = nil
+
+-- อัปเดต character เมื่อ respawn
+player.CharacterAdded:Connect(function(char)
+    character = char
+    hrp = character:WaitForChild("HumanoidRootPart")
+    camera.CameraSubject = character:FindFirstChildOfClass("Humanoid")
+end)
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
@@ -119,7 +132,6 @@ local function setupTargetDeathListener(humanoid)
         tag.Value = humanoid
         tag.Parent = humanoid
 
-        -- one-time connection (optional: can store reference if needed)
         humanoid.Died:Connect(function()
             currentTarget = nil
         end)
@@ -158,7 +170,7 @@ RunService.Heartbeat:Connect(function()
 
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP then
+            if mobHRP and character and character.PrimaryPart then
                 local targetPos = mobHRP.Position + Vector3.new(0, 2, 0)
                 local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
@@ -168,12 +180,20 @@ RunService.Heartbeat:Connect(function()
                 end
 
                 character:SetPrimaryPartCFrame(lookAt)
+
+                -- รีเซ็ตฟิสิกส์ภายหลังเพื่อไม่ให้จอดำ
+                task.delay(0.1, function()
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                    end
+                end)
             end
         end
     else
         currentTarget = nil
     end
 end)
+
 
 
 
