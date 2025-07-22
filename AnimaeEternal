@@ -147,7 +147,7 @@ RunService.Heartbeat:Connect(function()
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 5, -1) -- ลอยสูงกว่าปกติ
+                local safeOffset = Vector3.new(0, 20, -1) -- ลอยสูงกว่าปกติ
                 local newCFrame = mobHRP.CFrame + safeOffset
                 character:SetPrimaryPartCFrame(newCFrame)
 
