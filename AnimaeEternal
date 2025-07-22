@@ -164,7 +164,7 @@ RunService.Heartbeat:Connect(function()
             if mobHRP and character and character.PrimaryPart then
                 local mobPos = mobHRP.Position
                 local direction = (hrp.Position - mobPos).Unit
-                local distance = 8 -- อยู่ห่างจากมอน 8 studs
+                local distance = 1 -- อยู่ห่างจากมอน 8 studs
                 local targetPos = mobPos + direction * distance + Vector3.new(0, 0, 0)
 
                 local lookAt = CFrame.new(targetPos, mobHRP.Position)
