@@ -103,8 +103,30 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 })
 
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local character = nil
+local hrp = nil
+
+local function onCharacterAdded(char)
+    character = char
+    hrp = char:WaitForChild("HumanoidRootPart")
+end
+
+-- กรณีตัวละครมีอยู่แล้วตอนโหลดสคริปต์
+if player.Character then
+    onCharacterAdded(player.Character)
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+local autofarm = false
+local selectedMonsterId = nil
 local currentTarget = nil
 local hasWarped = false
+local lastWarpTime = 0
+local warpInterval = 0.15 -- ปรับความถี่การย้ายตัวละคร (0.15 วินาที)
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
@@ -125,43 +147,64 @@ local function setupTargetDeathListener(humanoid)
 end
 
 RunService.Heartbeat:Connect(function()
-    if autofarm and selectedMonsterId then
-        if not currentTarget or not currentTarget.Parent then
-            currentTarget = nil
-            hasWarped = false
+    if not autofarm or not selectedMonsterId then
+        -- ถ้าไม่ได้เปิด AutoFarm หรือตัวเลือกยังไม่มี ให้คืนสถานะและเคลียร์ target
+        currentTarget = nil
+        if hasWarped and character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) -- คืนสถานะปกติ
+            end
         end
+        hasWarped = false
+        return
+    end
 
-        if not currentTarget then
-            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
-                if mob:GetAttribute("Monster_Id") == selectedMonsterId then
-                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        currentTarget = mob
-                        setupTargetDeathListener(humanoid)
-                        break
-                    end
+    if not character or not hrp then
+        -- ตัวละครยังไม่พร้อม ให้ข้ามรอบนี้
+        return
+    end
+
+    -- ตรวจสอบ target ปัจจุบัน
+    if not currentTarget or not currentTarget.Parent then
+        currentTarget = nil
+        hasWarped = false
+    end
+
+    -- หา target ใหม่ถ้ายังไม่มี
+    if not currentTarget then
+        for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+            if mob:GetAttribute("Monster_Id") == selectedMonsterId then
+                local humanoid = mob:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    currentTarget = mob
+                    setupTargetDeathListener(humanoid)
+                    break
                 end
             end
         end
+    end
 
-        if currentTarget then
-            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 0, -1) -- ลอยสูงกว่าปกติ
-                local newCFrame = mobHRP.CFrame + safeOffset
-                character:SetPrimaryPartCFrame(newCFrame)
+    -- ย้ายตัวละครหากมี target และถึงเวลาย้าย
+    if currentTarget and tick() - lastWarpTime > warpInterval then
+        local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+        if mobHRP then
+            local safeOffset = Vector3.new(0, 0, -1) -- ปรับระยะห่างจากมอนสเตอร์ได้
+            local newCFrame = mobHRP.CFrame + safeOffset
 
-                -- ปิด Physics ให้บินค้าง
+            -- ย้ายตัวละคร
+            character:SetPrimaryPartCFrame(newCFrame)
+
+            -- เปลี่ยนสถานะ humanoid ครั้งเดียวตอนเริ่มฟาร์ม
+            if not hasWarped then
                 local humanoid = character:FindFirstChildOfClass("Humanoid")
                 if humanoid then
                     humanoid:ChangeState(Enum.HumanoidStateType.Physics)
                 end
-
                 hasWarped = true
             end
+
+            lastWarpTime = tick()
         end
-    else
-        currentTarget = nil
-        hasWarped = false
     end
 end)
