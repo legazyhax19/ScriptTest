@@ -109,16 +109,15 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
+
 local currentTarget = nil
 local hasWarped = false
 
--- รีเซ็ตตัวแปรเมื่อรีสปอร์น
 player.CharacterAdded:Connect(function(char)
     character = char
-    hrp = character:WaitForChild("HumanoidRootPart")
+    hrp = char:WaitForChild("HumanoidRootPart")
 end)
 
--- ฟังก์ชันจับการตายของมอน
 local function setupTargetDeathListener(humanoid)
     if humanoid then
         local existingTag = humanoid:FindFirstChild("__AutofarmDeath")
@@ -138,14 +137,13 @@ local function setupTargetDeathListener(humanoid)
     end
 end
 
--- ฟังก์ชันหามอนที่ใกล้ที่สุดจากชื่อ/ID ที่เลือก
 local function findNearestTarget()
     local nearestMob, nearestDist = nil, math.huge
     local charHRP = character and character:FindFirstChild("HumanoidRootPart")
     if not charHRP then return nil end
 
     for _, mob in workspace.Debris.Monsters:GetChildren() do
-        if mob:GetAttribute("Monster_Id") == selectedMonsterId then  -- เช่น "Goku"
+        if mob:GetAttribute("Monster_Id") == selectedMonsterId then
             local mobHRP = mob:FindFirstChild("HumanoidRootPart")
             local humanoid = mob:FindFirstChildOfClass("Humanoid")
 
@@ -162,7 +160,6 @@ local function findNearestTarget()
     return nearestMob
 end
 
--- ลูปหลักในการทำ Autofarm
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
         if not currentTarget or not currentTarget.Parent then
@@ -181,13 +178,19 @@ RunService.Heartbeat:Connect(function()
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and hrp then
-                local safeOffset = Vector3.new(0, 3, -2)
-                local targetCFrame = mobHRP.CFrame + safeOffset
-                local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                local goal = { CFrame = targetCFrame }
+                local targetPos = mobHRP.Position + Vector3.new(0, 2, 0)
+                local lookAt = CFrame.new(targetPos, mobHRP.Position)
 
-                local tween = TweenService:Create(hrp, tweenInfo, goal)
-                tween:Play()
+                -- สร้าง Tween แบบเร็วมาก
+                local fastTween = TweenService:Create(hrp, TweenInfo.new(0.05, Enum.EasingStyle.Linear), { CFrame = lookAt })
+                fastTween:Play()
+
+                -- ปรับตำแหน่งอีกครั้งเพื่อความเป๊ะหลัง tween
+                task.delay(0.06, function()
+                    if hrp then
+                        hrp.CFrame = lookAt
+                    end
+                end)
 
                 hasWarped = true
             end
@@ -197,6 +200,7 @@ RunService.Heartbeat:Connect(function()
         hasWarped = false
     end
 end)
+
 
 
 
