@@ -104,15 +104,26 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
 local currentTarget = nil
 local hasWarped = false
 
+-- รีเซ็ตตัวแปรเมื่อรีสปอร์น
+player.CharacterAdded:Connect(function(char)
+    character = char
+    hrp = character:WaitForChild("HumanoidRootPart")
+end)
+
+-- ฟังก์ชันจับการตายของมอน
 local function setupTargetDeathListener(humanoid)
     if humanoid then
-        -- เคลียร์ tag event เก่า
-        local existing = humanoid:FindFirstChild("__AutofarmDeath")
-        if existing then
-            existing:Destroy()
+        local existingTag = humanoid:FindFirstChild("__AutofarmDeath")
+        if existingTag then
+            existingTag:Destroy()
         end
 
         local tag = Instance.new("ObjectValue")
@@ -127,6 +138,31 @@ local function setupTargetDeathListener(humanoid)
     end
 end
 
+-- ฟังก์ชันหามอนที่ใกล้ที่สุดจากชื่อ/ID ที่เลือก
+local function findNearestTarget()
+    local nearestMob, nearestDist = nil, math.huge
+    local charHRP = character and character:FindFirstChild("HumanoidRootPart")
+    if not charHRP then return nil end
+
+    for _, mob in workspace.Debris.Monsters:GetChildren() do
+        if mob:GetAttribute("Monster_Id") == selectedMonsterId then  -- เช่น "Goku"
+            local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+            local humanoid = mob:FindFirstChildOfClass("Humanoid")
+
+            if mobHRP and humanoid and humanoid.Health > 0 then
+                local dist = (mobHRP.Position - charHRP.Position).Magnitude
+                if dist < nearestDist then
+                    nearestDist = dist
+                    nearestMob = mob
+                end
+            end
+        end
+    end
+
+    return nearestMob
+end
+
+-- ลูปหลักในการทำ Autofarm
 RunService.Heartbeat:Connect(function()
     if autofarm and selectedMonsterId then
         if not currentTarget or not currentTarget.Parent then
@@ -135,30 +171,22 @@ RunService.Heartbeat:Connect(function()
         end
 
         if not currentTarget then
-            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
-                if mob:GetAttribute("Monster_Id") == selectedMonsterId then
-                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        currentTarget = mob
-                        setupTargetDeathListener(humanoid)
-                        break
-                    end
-                end
+            currentTarget = findNearestTarget()
+            if currentTarget then
+                local humanoid = currentTarget:FindFirstChildOfClass("Humanoid")
+                setupTargetDeathListener(humanoid)
             end
         end
 
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and character.PrimaryPart then
+            if mobHRP and hrp then
                 local safeOffset = Vector3.new(0, 3, -2)
                 local targetCFrame = mobHRP.CFrame + safeOffset
-
-                -- Tween ตัวละครไปยังเป้าหมาย
                 local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
                 local goal = { CFrame = targetCFrame }
 
-                local charHRP = character.PrimaryPart
-                local tween = TweenService:Create(charHRP, tweenInfo, goal)
+                local tween = TweenService:Create(hrp, tweenInfo, goal)
                 tween:Play()
 
                 hasWarped = true
