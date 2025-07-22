@@ -103,8 +103,26 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 })
 
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
 local currentTarget = nil
 
+-- วาร์ปแบบนุ่มนวล
+local function smoothWarp(targetCFrame)
+    if character and character.PrimaryPart then
+        local tweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+        local goal = {CFrame = targetCFrame}
+        TweenService:Create(character.PrimaryPart, tweenInfo, goal):Play()
+    end
+end
+
+-- ตรวจสถานะก่อนวาร์ป
+local function canWarp()
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.Health > 0 and humanoid:GetState() == Enum.HumanoidStateType.Running
+end
+
+-- ฟังการตายของเป้าหมาย
 local function setupTargetDeathListener(humanoid)
     if humanoid then
         if humanoid:FindFirstChild("__AutofarmDeath") then
@@ -153,34 +171,23 @@ RunService.Heartbeat:Connect(function()
             end
         end
 
-        -- วาร์ปไปบนหัวมอนอย่างเนียน
         if currentTarget then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
             if mobHRP and character and character.PrimaryPart then
-
-                -- ปิด Physics ชั่วคราว
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-                end
-
-                local mobPos = mobHRP.Position
-                local targetPos = mobPos + Vector3.new(0, 2, 0)
-
+                local targetPos = mobHRP.Position + Vector3.new(0, 2, 0)
                 local lookAt = CFrame.new(targetPos, mobHRP.Position)
-                character:SetPrimaryPartCFrame(lookAt)
+
+                -- ไม่วาร์ปถ้าห่างน้อย
+                if (character.PrimaryPart.Position - targetPos).Magnitude > 0.1 and canWarp() then
+                    smoothWarp(lookAt)
+                end
             end
         end
     else
         currentTarget = nil
-
-        -- เปิด Physics กลับมา
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
     end
 end)
+
 
 
 
