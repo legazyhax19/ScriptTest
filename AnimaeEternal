@@ -105,11 +105,50 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
 local RunService = game:GetService("RunService")
 local currentTarget = nil
 local hasWarped = false
-local bp, bg -- ตัวแปรเก็บ BodyPosition กับ BodyGyro
+local bp, bg -- BodyPosition กับ BodyGyro
 
 local function removeBodyControls()
     if bp then bp:Destroy() bp = nil end
     if bg then bg:Destroy() bg = nil end
+end
+
+local function setupTargetDeathListener(humanoid)
+    if humanoid then
+        if humanoid:FindFirstChild("__AutofarmDeath") then
+            humanoid:FindFirstChild("__AutofarmDeath"):Destroy()
+        end
+
+        local tag = Instance.new("ObjectValue")
+        tag.Name = "__AutofarmDeath"
+        tag.Value = humanoid
+        tag.Parent = humanoid
+
+        humanoid.Died:Connect(function()
+            currentTarget = nil
+            hasWarped = false
+            removeBodyControls()
+        end)
+    end
+end
+
+local function getSafeHoverPosition(mobHRP)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+    local hoverHeight = 5 -- ลอยสูง 5 studs เหนือหัวมอน
+    local targetPos = mobHRP.Position + Vector3.new(0, hoverHeight, 0)
+
+    -- Raycast เช็คว่ามีพื้น/part ด้านบนบังไหม (ป้องกันติด)
+    local rayDirection = Vector3.new(0, 1, 0) * 3 -- เช็คขึ้นบน 3 studs
+    local result = workspace:Raycast(targetPos, rayDirection, raycastParams)
+
+    if result then
+        -- ถ้ามี part ด้านบน เลื่อนต่ำลงมาเล็กน้อย
+        targetPos = targetPos - Vector3.new(0, 1, 0)
+    end
+
+    return targetPos
 end
 
 RunService.Heartbeat:Connect(function()
@@ -137,10 +176,8 @@ RunService.Heartbeat:Connect(function()
 
         if currentTarget and not hasWarped then
             local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
             local hrp = character:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and humanoid and hrp then
-                -- ป้องกันล้มและคุมตำแหน่งด้วย BodyPosition, BodyGyro
+            if mobHRP and hrp then
                 removeBodyControls()
 
                 bp = Instance.new("BodyPosition", hrp)
@@ -151,17 +188,12 @@ RunService.Heartbeat:Connect(function()
                 bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
                 bg.P = 1e4
 
-                local offset = Vector3.new(0, 100, -2) -- วาร์ปสูงขึ้นเล็กน้อย
-                local targetPos = mobHRP.Position + offset
-                bp.Position = targetPos
-                bg.CFrame = CFrame.new(targetPos, mobHRP.Position)
+                local safePos = getSafeHoverPosition(mobHRP)
+
+                bp.Position = safePos
+                bg.CFrame = CFrame.new(safePos, mobHRP.Position)
 
                 hasWarped = true
-
-                -- รอ 0.5 วิ แล้วลบ BodyPosition และ BodyGyro เพื่อคืนสภาพปกติ
-                task.delay(0.5, function()
-                    removeBodyControls()
-                end)
             end
         end
     else
@@ -170,4 +202,5 @@ RunService.Heartbeat:Connect(function()
         removeBodyControls()
     end
 end)
+
 
