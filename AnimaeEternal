@@ -44,34 +44,42 @@ monsterDropdown:OnChanged(function(title)
     })
 end)
 
--- ฟังก์ชันโหลดมอนสเตอร์
+-- ฟังก์ชันโหลดมอนสเตอร์ กรองระยะ 1000 Studs
 local function loadMonsters()
     monsterMap = {}
     selectedMonsterId = nil
     selectedMobData = nil
-    monsterDropdown:SetValue(nil) -- รีเซ็ต dropdown
-    
+    monsterDropdown:SetValue(nil)
+
     local titles = {}
+    local maxDistance = 1000 -- ระยะกรองมอนสเตอร์
+    local playerPos = hrp.Position
+
     for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
         local id = mob:GetAttribute("Monster_Id")
         local title = mob:GetAttribute("Title")
         local health = tonumber(mob:GetAttribute("Health"))
+        local mobHRP = mob:FindFirstChild("HumanoidRootPart")
 
-        if id and title and not monsterMap[title] then
-            monsterMap[title] = {
-                Id = id,
-                Health = health or 0,
-                Reference = mob
-            }
-            table.insert(titles, title)
+        if id and title and mobHRP and not monsterMap[title] then
+            local distance = (mobHRP.Position - playerPos).Magnitude
+
+            if distance <= maxDistance then
+                monsterMap[title] = {
+                    Id = id,
+                    Health = health or 0,
+                    Reference = mob
+                }
+                table.insert(titles, title)
+            end
         end
     end
-    
+
     monsterDropdown:SetValues(titles)
-    
+
     Fluent:Notify({
         Title = "โหลดสำเร็จ",
-        Content = "พบ " .. #titles .. " ตัว\n(ยกเลิกการเลือกมอนสเตอร์)",
+        Content = "พบ " .. #titles .. " ตัวในระยะ " .. tostring(maxDistance) .. " studs",
         Duration = 3
     })
 end
