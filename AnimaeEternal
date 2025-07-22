@@ -98,18 +98,27 @@ Tabs.Main:AddToggle("AutoFarmToggle", {
     Callback = function(value)
         autofarm = value
 
-        -- คืนค่า Physics เมื่อปิด
-        if not value then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Seated)
-                task.wait()
-                humanoid:ChangeState(Enum.HumanoidStateType.Running)
-            end
-        end
-    end
-})
+local autofarm = false
+local selectedMonsterId = nil
+local currentTarget = nil
 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+
+-- รีเซ็ต Physics หลังปิด AutoFarm
+local function resetPhysics()
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Seated)
+        task.wait(0.1)
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        task.wait(0.2)
+        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    end
+end
+
+-- ติดตามการตายของมอนสเตอร์
 local function setupTargetDeathListener(humanoid)
     if humanoid and not humanoid:FindFirstChild("__AutofarmDeath") then
         local tag = Instance.new("ObjectValue")
@@ -119,48 +128,48 @@ local function setupTargetDeathListener(humanoid)
 
         humanoid.Died:Connect(function()
             currentTarget = nil
-            hasWarped = false
         end)
     end
 end
 
+-- ฟังก์ชันฟาร์มหลัก
+local function updateAutoFarm()
+    if not autofarm or not selectedMonsterId then return end
+    if not currentTarget or not currentTarget.Parent then
+        currentTarget = nil
+    end
+
+    if not currentTarget then
+        for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+            if mob:GetAttribute("Monster_Id") == selectedMonsterId then
+                local humanoid = mob:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    currentTarget = mob
+                    setupTargetDeathListener(humanoid)
+                    break
+                end
+            end
+        end
+    end
+
+    if currentTarget then
+        local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+        if mobHRP and character and character.PrimaryPart then
+            character:SetPrimaryPartCFrame(mobHRP.CFrame + Vector3.new(0, 0, -1))
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+        end
+    end
+end
+
+-- เชื่อม RunService
 RunService.Heartbeat:Connect(function()
-    if autofarm and selectedMonsterId then
-        if not currentTarget or not currentTarget.Parent then
-            currentTarget = nil
-            hasWarped = false
-        end
-
-        if not currentTarget then
-            for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
-                if mob:GetAttribute("Monster_Id") == selectedMonsterId then
-                    local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        currentTarget = mob
-                        setupTargetDeathListener(humanoid)
-                        break
-                    end
-                end
-            end
-        end
-
-        if currentTarget then
-            local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
-            if mobHRP and character and character.PrimaryPart then
-                local safeOffset = Vector3.new(0, 0, -1)
-                local newCFrame = mobHRP.CFrame + safeOffset
-                character:SetPrimaryPartCFrame(newCFrame)
-
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-                end
-
-                hasWarped = true
-            end
-        end
+    if autofarm then
+        updateAutoFarm()
     else
         currentTarget = nil
-        hasWarped = false
+        resetPhysics()
     end
 end)
