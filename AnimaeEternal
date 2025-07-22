@@ -109,24 +109,29 @@ local player = Players.LocalPlayer
 local character = nil
 local hrp = nil
 
-local function onCharacterAdded(char)
-    character = char
-    hrp = char:WaitForChild("HumanoidRootPart")
-end
-
--- กรณีตัวละครมีอยู่แล้วตอนโหลดสคริปต์
-if player.Character then
-    onCharacterAdded(player.Character)
-end
-
-player.CharacterAdded:Connect(onCharacterAdded)
-
 local autofarm = false
 local selectedMonsterId = nil
 local currentTarget = nil
 local hasWarped = false
 local lastWarpTime = 0
-local warpInterval = 0.15 -- ปรับความถี่การย้ายตัวละคร (0.15 วินาที)
+local warpInterval = 0.15 -- ปรับความถี่การวาร์ป
+
+-- ตั้งค่าตัวละครเมื่อโหลดเสร็จ
+local function onCharacterAdded(char)
+    character = char
+    hrp = char:WaitForChild("HumanoidRootPart")
+
+    -- ตั้ง PrimaryPart ถ้ายังไม่มี
+    if not character.PrimaryPart then
+        character.PrimaryPart = hrp or character:FindFirstChildWhichIsA("BasePart")
+        print("Set character.PrimaryPart to:", character.PrimaryPart)
+    end
+end
+
+if player.Character then
+    onCharacterAdded(player.Character)
+end
+player.CharacterAdded:Connect(onCharacterAdded)
 
 local function setupTargetDeathListener(humanoid)
     if humanoid then
@@ -148,7 +153,7 @@ end
 
 RunService.Heartbeat:Connect(function()
     if not autofarm or not selectedMonsterId then
-        -- ถ้าไม่ได้เปิด AutoFarm หรือตัวเลือกยังไม่มี ให้คืนสถานะและเคลียร์ target
+        -- ปิด AutoFarm เคลียร์สถานะ
         currentTarget = nil
         if hasWarped and character then
             local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -161,41 +166,59 @@ RunService.Heartbeat:Connect(function()
     end
 
     if not character or not hrp then
-        -- ตัวละครยังไม่พร้อม ให้ข้ามรอบนี้
+        print("Waiting for character or HRP...")
         return
     end
 
-    -- ตรวจสอบ target ปัจจุบัน
     if not currentTarget or not currentTarget.Parent then
+        print("Clearing target")
         currentTarget = nil
         hasWarped = false
     end
 
-    -- หา target ใหม่ถ้ายังไม่มี
     if not currentTarget then
+        print("Searching for target with ID:", selectedMonsterId)
         for _, mob in pairs(workspace.Debris.Monsters:GetChildren()) do
+            print("Check mob:", mob.Name, "ID:", mob:GetAttribute("Monster_Id"))
             if mob:GetAttribute("Monster_Id") == selectedMonsterId then
                 local humanoid = mob:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health > 0 then
+                local mobHRP = mob:FindFirstChild("HumanoidRootPart")
+                if humanoid then
+                    print("Humanoid found with Health:", humanoid.Health)
+                else
+                    print("Humanoid NOT found")
+                end
+                if mobHRP then
+                    print("HumanoidRootPart found")
+                else
+                    print("HumanoidRootPart NOT found")
+                end
+                if humanoid and humanoid.Health > 0 and mobHRP then
                     currentTarget = mob
                     setupTargetDeathListener(humanoid)
+                    print("Target selected:", mob.Name)
                     break
                 end
             end
         end
+        if not currentTarget then
+            print("No valid target found for ID:", selectedMonsterId)
+        end
     end
 
-    -- ย้ายตัวละครหากมี target และถึงเวลาย้าย
     if currentTarget and tick() - lastWarpTime > warpInterval then
         local mobHRP = currentTarget:FindFirstChild("HumanoidRootPart")
         if mobHRP then
-            local safeOffset = Vector3.new(0, 0, -1) -- ปรับระยะห่างจากมอนสเตอร์ได้
+            local safeOffset = Vector3.new(0, 3, -3) -- ห่างจากมอนสเตอร์เล็กน้อย
             local newCFrame = mobHRP.CFrame + safeOffset
 
-            -- ย้ายตัวละคร
-            character:SetPrimaryPartCFrame(newCFrame)
+            if character.PrimaryPart then
+                character:SetPrimaryPartCFrame(newCFrame)
+                print("Warped to target:", currentTarget.Name)
+            else
+                print("Character primary part missing")
+            end
 
-            -- เปลี่ยนสถานะ humanoid ครั้งเดียวตอนเริ่มฟาร์ม
             if not hasWarped then
                 local humanoid = character:FindFirstChildOfClass("Humanoid")
                 if humanoid then
@@ -205,6 +228,28 @@ RunService.Heartbeat:Connect(function()
             end
 
             lastWarpTime = tick()
+        else
+            print("Target missing HumanoidRootPart")
+            currentTarget = nil
         end
     end
 end)
+
+-- ตัวอย่างวิธีตั้ง selectedMonsterId จาก Dropdown
+-- สมมติมี monsterMap เก็บข้อมูลมอนสเตอร์ไว้แล้ว
+-- monsterDropdown:OnChanged(function(title)
+--     local selectedMobData = monsterMap[title]
+--     if selectedMobData then
+--         selectedMonsterId = selectedMobData.Id
+--         print("Selected Monster:", title, "ID:", selectedMonsterId)
+--     else
+--         selectedMonsterId = nil
+--         print("Selected invalid monster title:", title)
+--     end
+-- end)
+
+-- ตัวแปร autofarm ควบคุมโดย Toggle GUI
+-- ตัวอย่างการเปิด-ปิด autofarm:
+-- autofarm = true  -- เริ่มฟาร์ม
+-- autofarm = false -- หยุดฟาร์ม
+
